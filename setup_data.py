@@ -12,18 +12,21 @@ import pickle
 def prepare_all_data():
     print("Mulai mengunduh dan memproses data dari Kaggle...")
     
-   # 1. Setup Kaggle Token milik kelompokmu (Versi Aman untuk Server Cloud)
-    KAGGLE_TOKEN = "KGAT_9ed35927e9283a77bc4f4ecacbbf68d7"
-    
-    # Gunakan folder home user server saat ini secara dinamis
+    # 1. Setup Kaggle Token dengan Home Directory yang Aman
+    # Menggunakan os.path.expanduser('~') agar kompatibel di server Streamlit (Linux)
     home_dir = os.path.expanduser('~')
     kaggle_dir = os.path.join(home_dir, '.kaggle')
-    
     os.makedirs(kaggle_dir, exist_ok=True)
-    with open(os.path.join(kaggle_dir, 'kaggle.json'), 'w') as f: # Kaggle API default membaca kaggle.json
-        f.write('{"username":"shuyangli94","key":"9ed35927e9283a77bc4f4ecacbbf68d7"}')
+    
+    # Format token Kaggle yang benar harus berbentuk JSON seperti ini: {"username":"...", "key":"..."}
+    # Karena di kode asli kamu tokennya "KGAT_9ed35...", pastikan ini memang API Key utuh dari Kaggle ya!
+    token_path = os.path.join(kaggle_dir, 'kaggle.json')
+    with open(token_path, 'w') as f:
+        # Catatan: Jika token di bawah ini adalah API Key utuh, sesuaikan username-mu jika nanti gagal download
+        f.write('{"username":"kelompok_kamu", "key":"KGAT_9ed35927e9283a77bc4f4ecacbbf68d7"}')
         
-    os.chmod(os.path.join(kaggle_dir, 'kaggle.json'), 0o600)
+    os.chmod(token_path, 0o600)
+    os.environ['KAGGLE_CONFIG_DIR'] = kaggle_dir
 
     # 2. Download & Unzip Dataset
     import kaggle
