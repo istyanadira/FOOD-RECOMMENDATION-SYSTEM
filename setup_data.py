@@ -12,13 +12,18 @@ import pickle
 def prepare_all_data():
     print("Mulai mengunduh dan memproses data dari Kaggle...")
     
-    # 1. Setup Kaggle Token milik kelompokmu
+   # 1. Setup Kaggle Token milik kelompokmu (Versi Aman untuk Server Cloud)
     KAGGLE_TOKEN = "KGAT_9ed35927e9283a77bc4f4ecacbbf68d7"
-    os.makedirs('/root/.kaggle', exist_ok=True)
-    with open('/root/.kaggle/access_token', 'w') as f:
-        f.write(KAGGLE_TOKEN)
-    os.chmod('/root/.kaggle/access_token', 0o600)
-    os.environ['KAGGLE_CONFIG_DIR'] = '/root/.kaggle'
+    
+    # Gunakan folder home user server saat ini secara dinamis
+    home_dir = os.path.expanduser('~')
+    kaggle_dir = os.path.join(home_dir, '.kaggle')
+    
+    os.makedirs(kaggle_dir, exist_ok=True)
+    with open(os.path.join(kaggle_dir, 'kaggle.json'), 'w') as f: # Kaggle API default membaca kaggle.json
+        f.write('{"username":"shuyangli94","key":"9ed35927e9283a77bc4f4ecacbbf68d7"}')
+        
+    os.chmod(os.path.join(kaggle_dir, 'kaggle.json'), 0o600)
 
     # 2. Download & Unzip Dataset
     import kaggle
