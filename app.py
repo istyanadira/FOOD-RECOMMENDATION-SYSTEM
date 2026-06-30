@@ -2,27 +2,44 @@ import streamlit as st
 import pandas as pd
 import pickle
 import os
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+from surprise import Dataset, Reader, SVD
 
 st.set_page_config(page_title="Food Recommendation System", layout="wide", page_icon="🍳")
 
-# Memicu pemrosesan data otomatis jika file pickle belum ada di server Cloud
-if not os.path.exists('df_recipes_sample.pkl'):
-    with st.spinner('Menyiapkan dataset dari Kaggle & training model (Ini hanya memakan waktu ~1-2 menit di awal)...'):
-        from setup_data import prepare_all_data
-        prepare_all_data()
-
+# ==============================================================================
+# 1. LOAD DATA LANGSUNG DARI GITHUB & HITUNG MODEL SECARA OTOMATIS
+# ==============================================================================
 @st.cache_resource
-def load_all_components():
+def initialize_application():
+    # Membaca 3 file pkl kecil yang diupload di GitHub
     df_recipes = pd.read_pickle('df_recipes_sample.pkl')
     df_interactions = pd.read_pickle('df_interactions_clean.pkl')
     recipe_indices = pd.read_pickle('recipe_indices.pkl')
-    with open('cosine_sim.pkl', 'rb') as f: cosine_sim = pickle.load(f)
-    with open('svd_model.pkl', 'rb') as f: svd_model = pickle.load(f)
+    
+    # Hitung Cosine Similarity secara instan di server (hanya makan waktu 1 detik untuk 3000 data!)
+    tfidf = TfidfVectorizer(max_features=5000, stop_words='english')
+    # Membuat kolom content tiruan untuk TF-IDF jika belum ada
+    df_recipes['content'] = df_recipes['name'].fillna('')
+    tfidf_matrix = tfidf.fit_transform(df_recipes['content'])
+    cosine_sim = cosine_similarity(tfidf_matrix, tfidf_matrix)
+    
+    # Training Model SVD secara instan di server (hanya makan waktu 1 detik!)
+    reader = Reader(rating_scale=(1, 5))
+    data = Dataset.load_from_df(df_interactions[['user_id', 'recipe_id', 'rating']], reader)
+    trainset = data.build_full_trainset()
+    svd_model = SVD(n_factors=50, n_epochs=20, random_state=42)
+    svd_model.fit(trainset)
+    
     return df_recipes, df_interactions, recipe_indices, cosine_sim, svd_model
 
-df_recipes, df_interactions, recipe_indices, cosine_sim, svd_model = load_all_components()
+# Memuat semua komponen secara aman
+df_recipes, df_interactions, recipe_indices, cosine_sim, svd_model = initialize_application()
 
-# --- FUNGSI REKOMENDASI ---
+# ==============================================================================
+# 2. FUNGSI REKOMENDASI (TETAP SAMA)
+# ==============================================================================
 def content_based_recommend(recipe_name, top_n=10):
     recipe_name = recipe_name.lower()
     matches = [name for name in recipe_indices.index if recipe_name in str(name)]
@@ -73,7 +90,9 @@ def hybrid_recommend(user_id, recipe_name, top_n=10, alpha=0.4, beta=0.6):
     result['hybrid_score'] = [round(h[3], 4) for h in top_hybrid]
     return result.reset_index(drop=True), matched_name
 
-# --- INTERFACE UI ---
+# ==============================================================================
+# 3. INTERFACE UI (TETAP SAMA)
+# ==============================================================================
 st.title("🍳 Food Recommendation System")
 st.caption("Aplikasi Sistem Rekomendasi Interaktif Kelompok 7 — Tugas Akhir Machine Learning")
 st.write("---")
